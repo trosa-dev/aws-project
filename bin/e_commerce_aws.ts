@@ -1,21 +1,50 @@
-#!/usr/bin/env node
+// Importing 'source-map-support/register' to enable source map support for better debugging.
 import 'source-map-support/register';
+
+// Importing the AWS Cloud Development Kit library.
 import * as cdk from 'aws-cdk-lib';
-import { ECommerceAwsStack } from '../lib/e_commerce_aws-stack';
 
+// Importing custom CDK stacks from their respective locations.
+import { ProductsAppStack } from '../lib/productsApp-stack';
+import { ECommerceApiGatewayStack } from '../lib/eCommerceApiGateway-stack';
+
+// Creating a new CDK app instance.
 const app = new cdk.App();
-new ECommerceAwsStack(app, 'ECommerceAwsStack', {
-	/* If you don't specify 'env', this stack will be environment-agnostic.
-	 * Account/Region-dependent features and context lookups will not work,
-	 * but a single synthesized template can be deployed anywhere. */
 
-	/* Uncomment the next line to specialize this stack for the AWS Account
-	 * and Region that are implied by the current CLI configuration. */
-	// env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
+// Defining the AWS account and region for deployment.
+const env: cdk.Environment = {
+	account: "288595053204",
+	region: "sa-east-1",
+};
 
-	/* Uncomment the next line if you know exactly what Account and Region you
-	 * want to deploy the stack to. */
-	// env: { account: '123456789012', region: 'us-east-1' },
+// Defining tags for the CloudFormation stacks.
+const tags = {
+	cost: "ECommerce",
+	team: "TRTech.dev"
+};
 
-	/* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
-});
+// Creating an instance of the ProductsAppStack with specified tags and environment.
+const productsAppStack = new ProductsAppStack({
+	id: "ProductsApp",
+	scope: app,
+	props: {
+		tags,
+		env,
+	},
+}
+);
+
+// Creating an instance of the EcommerceApiStack with specified tags, environment, and a dependency on productsAppStack.
+const eCommerceApiStack = new ECommerceApiGatewayStack({
+	id: "ECommerceApiGateway",
+	scope: app,
+	productsFetchHandler: productsAppStack.productsFetchHandler,
+	props: {
+		tags,
+		env,
+	},
+}
+);
+
+// Adding a dependency between EcommerceApiStack and productsAppStack to ensure the correct deployment order.
+eCommerceApiStack.addDependency(productsAppStack);
