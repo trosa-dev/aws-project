@@ -1,12 +1,15 @@
+// Importing necessary CDK and AWS resources.
 import * as cdk from 'aws-cdk-lib';
-import * as lambdaNodeJS from "aws-cdk-lib/aws-lambda-nodejs"
-import * as apigateway from "aws-cdk-lib/aws-apigateway"
-import * as cwlogs from "aws-cdk-lib/aws-logs"
+import * as lambdaNodeJS from "aws-cdk-lib/aws-lambda-nodejs";
+import * as apigateway from "aws-cdk-lib/aws-apigateway";
+import * as cwlogs from "aws-cdk-lib/aws-logs";
 import { Construct } from 'constructs';
+import { HttpMethod } from 'aws-cdk-lib/aws-events';
 
-// Define the properties expected by the ECommerceApiStack.
+// Define the expected properties for the ECommerceApiStack.
 interface ECommerceApiGatewayStackProps extends cdk.StackProps {
 	productsFetchHandler: lambdaNodeJS.NodejsFunction;
+	productsAdminHandler: lambdaNodeJS.NodejsFunction;
 	scope: Construct;
 	id: string;
 	props: cdk.StackProps;
@@ -16,7 +19,7 @@ interface ECommerceApiGatewayStackProps extends cdk.StackProps {
 export class ECommerceApiGatewayStack extends cdk.Stack {
 	// Constructor for the ECommerceApiStack.
 	constructor(constructorProps: ECommerceApiGatewayStackProps) {
-		const { scope, id, props, productsFetchHandler } = constructorProps;
+		const { scope, id, props, productsFetchHandler, productsAdminHandler } = constructorProps;
 
 		// Call the base class constructor with appropriate parameters.
 		super(scope, id, props);
@@ -45,15 +48,23 @@ export class ECommerceApiGatewayStack extends cdk.Stack {
 						caller: true,
 						user: true,
 					}),
-				}
+				},
 			}
 		);
 
-		// Create a Lambda integration for the specified Lambda function.
-		const productsFetchIntegration = new apigateway.LambdaIntegration(productsFetchHandler);
-
-		// Create a resource ("/products") and associate the Lambda integration with a "GET" method.
+		// Create resources for handling products and product IDs.
 		const productsResource = api.root.addResource("products");
-		productsResource.addMethod("GET", productsFetchIntegration);
+		const productIdResource = productsResource.addResource("{id}");
+
+		// Create a Lambda integration for fetching products.
+		const productsFetchIntegration = new apigateway.LambdaIntegration(productsFetchHandler);
+		productsResource.addMethod(HttpMethod.GET, productsFetchIntegration);
+		productIdResource.addMethod(HttpMethod.GET, productsFetchIntegration);
+
+		// Create a Lambda integration for handling product administration.
+		const productsAdminIntegration = new apigateway.LambdaIntegration(productsAdminHandler);
+		productsResource.addMethod(HttpMethod.POST, productsAdminIntegration);
+		productsResource.addMethod(HttpMethod.PUT, productsAdminIntegration);
+		productsResource.addMethod(HttpMethod.DELETE, productsAdminIntegration);
 	}
 }
